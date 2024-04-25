@@ -1,7 +1,10 @@
 package com.example.clearsolutiontestapp.web;
 
 import com.example.clearsolutiontestapp.domain.User;
+import com.example.clearsolutiontestapp.dto.UserDto;
 import com.example.clearsolutiontestapp.service.UserService;
+import com.example.clearsolutiontestapp.util.config.mapper.UserMapper;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -20,12 +24,14 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final UserMapper userMapper;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User saveUser(@RequestBody User user) {
-        log.info("UserController --> saveUser() - start: user = {}", user);
-        User savedUser = userService.create(user);
+    public UserDto saveUser(@Valid @RequestBody UserDto userDto) {
+        log.info("UserController --> saveUser() - start: user = {}", userDto);
+        User user = userMapper.fromUserDto(userDto);
+        UserDto savedUser = userMapper.toUserDto(userService.create(user));
         log.info("UserController --> saveUser() - end: user = {}", savedUser);
         return savedUser;
     }
@@ -33,21 +39,22 @@ public class UserController {
     @SneakyThrows
     @PutMapping("/{id}/fields")
     @ResponseStatus(HttpStatus.OK)
-    public User updateSomeUsersFields(@PathVariable("id") String id, @RequestBody Map<String, Object> fieldsToUpdate) {
+    public UserDto updateSomeUsersFields(@PathVariable("id") String id, @RequestBody Map<String, Object> fieldsToUpdate) {
         log.info("UserController --> updateSomeUsersFields() - start: id = {}, fieldsToUpdate = {}:", id, fieldsToUpdate);
         Integer parseId = Integer.parseInt(id);
-        User user = userService.updateSomeFields(parseId, fieldsToUpdate);
-        log.info("UserController --> updateSomeUsersFields() - end: user = {}", user);
-        return user;
+        UserDto updatedUser = userMapper.toUserDto(userService.updateSomeFields(parseId, fieldsToUpdate));
+        log.info("UserController --> updateSomeUsersFields() - end: user = {}", updatedUser);
+        return updatedUser;
     }
 
     @SneakyThrows
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    public User updateAllUsersFields(@PathVariable("id") String id, @RequestBody User user) {
-        log.info("UserController --> updateAllUsersFields() - start: id = {}, user = {}:", id,user);
+    public UserDto updateAllUsersFields(@PathVariable("id") String id, @Valid @RequestBody UserDto userDto) {
+        log.info("UserController --> updateAllUsersFields() - start: id = {}, user = {}:", id,userDto);
         Integer parseId = Integer.parseInt(id);
-        User updatedEmployee= userService.updateAllFields(parseId, user);
+        User user = userMapper.fromUserDto(userDto);
+        UserDto updatedEmployee= userMapper.toUserDto(userService.updateAllFields(parseId, user));
         log.info("UserController --> updateAllUsersFields() - end: user = {}", updatedEmployee);
         return updatedEmployee;
     }
@@ -64,12 +71,16 @@ public class UserController {
 
     @GetMapping("/birthdate")
     @ResponseStatus(HttpStatus.OK)
-    public List<User> getUsersByBirthRange(@RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+    public List<UserDto> getUsersByBirthRange(@RequestParam("startDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                                            @RequestParam("endDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         log.info("UserController --> getUsersByBirthRange() - start: startDate = {}, endDate = {}", startDate, endDate);
         List<User> users = userService.getByBirthRange(startDate, endDate);
-        log.info("UserController --> getUsersByBirthRange() - end: users = {}", users);
-        return users;
+        List<UserDto> usersDto = new ArrayList<>();
+        for (User user: users){
+            usersDto.add(userMapper.toUserDto(user));
+        }
+        log.info("UserController --> getUsersByBirthRange() - end: users = {}", usersDto);
+        return usersDto;
     }
 
 }

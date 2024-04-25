@@ -3,11 +3,13 @@ package com.example.clearsolutiontestapp.service;
 import com.example.clearsolutiontestapp.domain.User;
 import com.example.clearsolutiontestapp.repository.UserRepository;
 import com.example.clearsolutiontestapp.util.CopyDataException;
+import com.example.clearsolutiontestapp.util.UnderageException;
 import com.example.clearsolutiontestapp.util.UnrealAgeException;
 import com.example.clearsolutiontestapp.util.UserIsNotExistException;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
@@ -22,6 +24,9 @@ import java.util.Map;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+
+    @Value("${user.minimum.age}")
+    private int minimumAge;
 
     @SneakyThrows
     @Override
@@ -88,6 +93,9 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> getByBirthRange(LocalDate startDate, LocalDate endDate) {
         log.debug("UserService --> getByBirthRange() - start: startDate = {}, endDate = {}", startDate, endDate);
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Start date must be before end date");
+        }
         List<User> users = userRepository.findByBirthDateBetween(startDate, endDate);
         log.debug("UserService --> getByBirthRange() - end: users = {}", users);
         return users;
@@ -95,9 +103,14 @@ public class UserServiceImpl implements UserService {
 
     private void validateInputData(User user) throws CopyDataException {
         int age = Period.between(user.getBirthDate(), LocalDate.now()).getYears();
-        if (age < 1 || age > 122) {
+        if (age > 122) {
             throw new UnrealAgeException();
         }
+
+        if (age < minimumAge) {
+            throw new UnderageException();
+        }
+
         User existingUser = userRepository.findUserByEmail(user.getEmail());
         if (existingUser != null) {
             throw new CopyDataException();
