@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT u FROM User u WHERE u.birthDate BETWEEN :startDate AND :endDate")
     List<User> findByBirthDateBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
+    User findUserByEmail(String email);
+
 }

@@ -2,6 +2,9 @@ package com.example.clearsolutiontestapp.service;
 
 import com.example.clearsolutiontestapp.domain.User;
 import com.example.clearsolutiontestapp.repository.UserRepository;
+import com.example.clearsolutiontestapp.util.CopyDataException;
+import com.example.clearsolutiontestapp.util.UnrealAgeException;
+import com.example.clearsolutiontestapp.util.UserIsNotExistException;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -9,20 +12,23 @@ import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserServiceImpl implements UserService{
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
+    @SneakyThrows
     @Override
     public User create(User user) {
         log.debug("UserService --> create() - start: user = {}", user);
-        User newUser= userRepository.save(user);
+        validateInputData(user);
+        User newUser = userRepository.save(user);
         log.debug("UserService --> create() - end: user = {}", newUser);
         return newUser;
     }
@@ -44,7 +50,8 @@ public class UserServiceImpl implements UserService{
                     });
                     return userRepository.save(entity);
                 })
-                .orElseThrow(Exception::new);
+                .orElseThrow(UserIsNotExistException::new);
+        validateInputData(updatedUser);
         log.debug("UserService --> updateSomeFields() - end: user = {}", updatedUser);
         return updatedUser;
     }
@@ -53,7 +60,8 @@ public class UserServiceImpl implements UserService{
     @Override
     public User updateAllFields(Integer id, User user) {
         log.debug("UserService --> updateAllFields() - start: id = {}, user = {}", id, user);
-        User updatedUser= userRepository.findById(id)
+        validateInputData(user);
+        User updatedUser = userRepository.findById(id)
                 .map(entity -> {
                     entity.setEmail(user.getEmail());
                     entity.setFirstName(user.getFirstName());
@@ -63,7 +71,7 @@ public class UserServiceImpl implements UserService{
                     entity.setPhoneNumber(user.getPhoneNumber());
                     return userRepository.save(entity);
                 })
-                .orElseThrow(Exception::new);
+                .orElseThrow(UserIsNotExistException::new);
         log.debug("UserService --> updateAllFields() - end: user = {}", updatedUser);
         return updatedUser;
     }
@@ -72,7 +80,7 @@ public class UserServiceImpl implements UserService{
     @Override
     public void delete(Integer id) {
         log.debug("UserService --> delete() - start: id = {}", id);
-        User user = userRepository.findById(id).orElseThrow(Exception::new);
+        User user = userRepository.findById(id).orElseThrow(UserIsNotExistException::new);
         userRepository.delete(user);
         log.debug("UserService --> delete() - end: user = {}", user);
     }
@@ -83,6 +91,17 @@ public class UserServiceImpl implements UserService{
         List<User> users = userRepository.findByBirthDateBetween(startDate, endDate);
         log.debug("UserService --> getByBirthRange() - end: users = {}", users);
         return users;
+    }
+
+    private void validateInputData(User user) throws CopyDataException {
+        int age = Period.between(user.getBirthDate(), LocalDate.now()).getYears();
+        if (age < 1 || age > 122) {
+            throw new UnrealAgeException();
+        }
+        User existingUser = userRepository.findUserByEmail(user.getEmail());
+        if (existingUser != null) {
+            throw new CopyDataException();
+        }
     }
 
 }
