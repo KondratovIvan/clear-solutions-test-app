@@ -56,7 +56,8 @@ public class UserServiceImpl implements UserService {
                     return userRepository.save(entity);
                 })
                 .orElseThrow(UserIsNotExistException::new);
-        validateInputData(updatedUser);
+
+        validateInputDataNoEmail(updatedUser);
         log.debug("UserService --> updateSomeFields() - end: user = {}", updatedUser);
         return updatedUser;
     }
@@ -114,6 +115,17 @@ public class UserServiceImpl implements UserService {
         User existingUser = userRepository.findUserByEmail(user.getEmail());
         if (existingUser != null) {
             throw new CopyDataException();
+        }
+    }
+
+    private void validateInputDataNoEmail(User user) throws CopyDataException {
+        int age = Period.between(user.getBirthDate(), LocalDate.now()).getYears();
+        if (age > 122) {
+            throw new UnrealAgeException();
+        }
+
+        if (age < minimumAge) {
+            throw new UnderageException();
         }
     }
 
